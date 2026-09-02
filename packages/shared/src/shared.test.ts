@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SPRINGSHARE_HEADERS } from "./constants";
+import { findExpiryDateText, removeExpiryDate, setExpiryDate } from "./expiryDate";
 import { resolveFinalDescription } from "./finalDescription";
 import { hasOneSearchIcon, ONESEARCH_ICON_HTML, removeOneSearchIcon, setOneSearchIcon } from "./oneSearchIcon";
 import { DatabaseAssignmentsUpdateSchema, DatabaseRecordNameUpdateSchema, SessionStartSchema } from "./schemas";
@@ -52,6 +53,27 @@ describe("shared helpers", () => {
 
     expect(hasOneSearchIcon(description)).toBe(true);
     expect(setOneSearchIcon(description, false)).toBe("<p>Description</p>");
+  });
+
+  it("extracts an expiry date from bold availability text", () => {
+    const description = "<p>Description</p><p><b>Available through June 30, 2025</b></p>";
+
+    expect(findExpiryDateText(description)).toBe("Available through June 30, 2025");
+    expect(removeExpiryDate(description)).toBe("<p>Description</p>");
+  });
+
+  it("appends escaped expiry date text as a bold paragraph", () => {
+    const description = setExpiryDate("<p>Description</p>", true, "Available through May & June");
+
+    expect(description).toBe("<p>Description</p>\n<p><strong>Available through May &amp; June</strong></p>");
+    expect(findExpiryDateText(description)).toBe("Available through May & June");
+  });
+
+  it("ignores bold text that does not contain the word available", () => {
+    const description = "<p><strong>Access ends June 30</strong></p>";
+
+    expect(findExpiryDateText(description)).toBeNull();
+    expect(removeExpiryDate(description)).toBe(description);
   });
 
   it("starts a reviewer session from subjects, individual databases, or both", () => {

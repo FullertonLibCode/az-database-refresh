@@ -1,5 +1,6 @@
 export * from "./constants";
 export * from "./csv";
+export * from "./expiryDate";
 export * from "./finalDescription";
 export * from "./oneSearchIcon";
 export * from "./sanitize";

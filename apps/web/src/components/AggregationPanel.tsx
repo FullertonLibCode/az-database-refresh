@@ -1,9 +1,12 @@
 import {
   CHOICE_LABELS,
   FINAL_DECISION_LABELS,
+  findExpiryDateText,
   hasOneSearchIcon,
+  removeExpiryDate,
   removeOneSearchIcon,
   resolveFinalDescription,
+  setExpiryDate as appendExpiryDate,
   type FinalDecision
 } from "@az-refresh/shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -39,6 +42,8 @@ export function AggregationPanel({ adminToken = "", resultAdminToken = "", showR
   const [selectedReviewId, setSelectedReviewId] = useState("");
   const [finalHtml, setFinalHtml] = useState("");
   const [coveredInOneSearch, setCoveredInOneSearch] = useState(false);
+  const [expiryDate, setExpiryDate] = useState(false);
+  const [expiryDateText, setExpiryDateText] = useState("");
   const [artificialIntelligenceIcon, setArtificialIntelligenceIcon] = useState(false);
   const [finalized, setFinalized] = useState(false);
   const [status, setStatus] = useState("");
@@ -78,7 +83,7 @@ export function AggregationPanel({ adminToken = "", resultAdminToken = "", showR
         databaseId: selected.record.databaseId,
         decision,
         selectedReviewId: selectedReviewId || null,
-        finalDescriptionHtml: finalHtml,
+        finalDescriptionHtml: appendExpiryDate(finalHtml, expiryDate, expiryDateText),
         oneSearchIcon: coveredInOneSearch,
         artificialIntelligenceIcon,
         finalized
@@ -99,7 +104,8 @@ export function AggregationPanel({ adminToken = "", resultAdminToken = "", showR
     setDecision(nextDecision);
     setSelectedReviewId(reviewId);
     const resolvedHtml = resolveFinalDescription(nextDecision, selected.record, finalHtml, review ?? null);
-    setFinalHtml(removeOneSearchIcon(resolvedHtml));
+    updateExpiryDateFromHtml(resolvedHtml);
+    setFinalHtml(removeExpiryDate(removeOneSearchIcon(resolvedHtml)));
   }
 
   function toggleOneSearchIcon(included: boolean) {
@@ -108,7 +114,15 @@ export function AggregationPanel({ adminToken = "", resultAdminToken = "", showR
 
   function updateFinalHtml(html: string) {
     if (hasOneSearchIcon(html)) setCoveredInOneSearch(true);
-    setFinalHtml(removeOneSearchIcon(html));
+    updateExpiryDateFromHtml(html);
+    setFinalHtml(removeExpiryDate(removeOneSearchIcon(html)));
+  }
+
+  function updateExpiryDateFromHtml(html: string) {
+    const text = findExpiryDateText(html);
+    if (text === null) return;
+    setExpiryDate(true);
+    setExpiryDateText(text);
   }
 
   const sidebar = useMemo(
@@ -173,9 +187,13 @@ export function AggregationPanel({ adminToken = "", resultAdminToken = "", showR
       ? existing.oneSearchIcon || hasOneSearchIcon(existing.finalDescriptionHtml)
       : hasOneSearchIcon(selected.record.originalDescriptionHtml);
     const description = existing?.finalDescriptionHtml || selected.record.rewrittenDescriptionAHtml;
+    const expirySource = existing ? existing.finalDescriptionHtml : selected.record.originalDescriptionHtml;
+    const detectedExpiryDateText = findExpiryDateText(expirySource);
     setCoveredInOneSearch(included);
+    setExpiryDate(detectedExpiryDateText !== null);
+    setExpiryDateText(detectedExpiryDateText ?? "");
     setArtificialIntelligenceIcon(existing?.artificialIntelligenceIcon ?? false);
-    setFinalHtml(removeOneSearchIcon(description));
+    setFinalHtml(removeExpiryDate(removeOneSearchIcon(description)));
     setFinalized(existing?.finalized ?? false);
   }, [selected?.record.databaseId]);
 
@@ -248,6 +266,27 @@ export function AggregationPanel({ adminToken = "", resultAdminToken = "", showR
                   />
                   <span className="form-check-label">Artificial intelligence</span>
                 </label>
+                <div className="w-100 mb-2">
+                  <label className="form-check">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      checked={expiryDate}
+                      onChange={(event) => setExpiryDate(event.target.checked)}
+                    />
+                    <span className="form-check-label">Expiry date</span>
+                  </label>
+                  {expiryDate && (
+                    <input
+                      aria-label="Expiry date text"
+                      className="form-control form-control-sm"
+                      type="text"
+                      value={expiryDateText}
+                      placeholder="Available through June 30, 2025"
+                      onChange={(event) => setExpiryDateText(event.target.value)}
+                    />
+                  )}
+                </div>
                 <label className="form-check mb-3">
                   <input
                     className="form-check-input"
