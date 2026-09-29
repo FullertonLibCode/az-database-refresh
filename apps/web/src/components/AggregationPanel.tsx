@@ -1,9 +1,12 @@
 import {
   CHOICE_LABELS,
   FINAL_DECISION_LABELS,
+  findExpiryDateText,
   hasOneSearchIcon,
+  removeExpiryDate,
+  removeOneSearchIcon,
   resolveFinalDescription,
-  setOneSearchIcon,
+  setExpiryDate as appendExpiryDate,
   type FinalDecision
 } from "@az-refresh/shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -39,6 +42,8 @@ export function AggregationPanel({ adminToken = "", resultAdminToken = "", showR
   const [selectedReviewId, setSelectedReviewId] = useState("");
   const [finalHtml, setFinalHtml] = useState("");
   const [coveredInOneSearch, setCoveredInOneSearch] = useState(false);
+  const [expiryDate, setExpiryDate] = useState(false);
+  const [expiryDateText, setExpiryDateText] = useState("");
   const [artificialIntelligenceIcon, setArtificialIntelligenceIcon] = useState(false);
   const [finalized, setFinalized] = useState(false);
   const [status, setStatus] = useState("");
@@ -78,7 +83,8 @@ export function AggregationPanel({ adminToken = "", resultAdminToken = "", showR
         databaseId: selected.record.databaseId,
         decision,
         selectedReviewId: selectedReviewId || null,
-        finalDescriptionHtml: finalHtml,
+        finalDescriptionHtml: appendExpiryDate(finalHtml, expiryDate, expiryDateText),
+        oneSearchIcon: coveredInOneSearch,
         artificialIntelligenceIcon,
         finalized
       };
@@ -98,17 +104,25 @@ export function AggregationPanel({ adminToken = "", resultAdminToken = "", showR
     setDecision(nextDecision);
     setSelectedReviewId(reviewId);
     const resolvedHtml = resolveFinalDescription(nextDecision, selected.record, finalHtml, review ?? null);
-    setFinalHtml(setOneSearchIcon(resolvedHtml, coveredInOneSearch));
+    updateExpiryDateFromHtml(resolvedHtml);
+    setFinalHtml(removeExpiryDate(removeOneSearchIcon(resolvedHtml)));
   }
 
   function toggleOneSearchIcon(included: boolean) {
     setCoveredInOneSearch(included);
-    setFinalHtml((current) => setOneSearchIcon(current, included));
   }
 
   function updateFinalHtml(html: string) {
-    setFinalHtml(html);
-    setCoveredInOneSearch(hasOneSearchIcon(html));
+    if (hasOneSearchIcon(html)) setCoveredInOneSearch(true);
+    updateExpiryDateFromHtml(html);
+    setFinalHtml(removeExpiryDate(removeOneSearchIcon(html)));
+  }
+
+  function updateExpiryDateFromHtml(html: string) {
+    const text = findExpiryDateText(html);
+    if (text === null) return;
+    setExpiryDate(true);
+    setExpiryDateText(text);
   }
 
   const sidebar = useMemo(
@@ -170,12 +184,16 @@ export function AggregationPanel({ adminToken = "", resultAdminToken = "", showR
     setDecision(existing?.decision ?? "use_rewritten_a");
     setSelectedReviewId(existing?.selectedReviewId ?? "");
     const included = existing
-      ? hasOneSearchIcon(existing.finalDescriptionHtml)
+      ? existing.oneSearchIcon || hasOneSearchIcon(existing.finalDescriptionHtml)
       : hasOneSearchIcon(selected.record.originalDescriptionHtml);
     const description = existing?.finalDescriptionHtml || selected.record.rewrittenDescriptionAHtml;
+    const expirySource = existing ? existing.finalDescriptionHtml : selected.record.originalDescriptionHtml;
+    const detectedExpiryDateText = findExpiryDateText(expirySource);
     setCoveredInOneSearch(included);
+    setExpiryDate(detectedExpiryDateText !== null);
+    setExpiryDateText(detectedExpiryDateText ?? "");
     setArtificialIntelligenceIcon(existing?.artificialIntelligenceIcon ?? false);
-    setFinalHtml(setOneSearchIcon(description, included));
+    setFinalHtml(removeExpiryDate(removeOneSearchIcon(description)));
     setFinalized(existing?.finalized ?? false);
   }, [selected?.record.databaseId]);
 
@@ -187,6 +205,7 @@ export function AggregationPanel({ adminToken = "", resultAdminToken = "", showR
             <h2 className="h5 mb-1">{selected.record.databaseName}</h2>
             <div className="text-secondary small mb-1">ID {selected.record.databaseId}</div>
             <DatabaseUrl url={selected.record.databaseUrl} />
+            <AssociatedSubjects subjects={selected.record.associatedSubjects} />
             <VoteSummary item={selected} />
             <div className="row g-3 mt-1">
               <Description title="Original" html={selected.record.originalDescriptionHtml} onUse={() => applyDecision("use_original")} />
@@ -247,6 +266,27 @@ export function AggregationPanel({ adminToken = "", resultAdminToken = "", showR
                   />
                   <span className="form-check-label">Artificial intelligence</span>
                 </label>
+                <div className="w-100 mb-2">
+                  <label className="form-check">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      checked={expiryDate}
+                      onChange={(event) => setExpiryDate(event.target.checked)}
+                    />
+                    <span className="form-check-label">Expiry date</span>
+                  </label>
+                  {expiryDate && (
+                    <input
+                      aria-label="Expiry date text"
+                      className="form-control form-control-sm"
+                      type="text"
+                      value={expiryDateText}
+                      placeholder="Available through June 30, 2025"
+                      onChange={(event) => setExpiryDateText(event.target.value)}
+                    />
+                  )}
+                </div>
                 <label className="form-check mb-3">
                   <input
                     className="form-check-input"
@@ -295,6 +335,15 @@ function DatabaseUrl({ url }: { url: string }) {
       ) : (
         <span className="text-break">{url}</span>
       )}
+    </div>
+  );
+}
+
+function AssociatedSubjects({ subjects }: { subjects: string[] }) {
+  return (
+    <div className="small mb-3">
+      <span className="text-secondary">Associated subjects: </span>
+      <span>{subjects.length > 0 ? subjects.join("; ") : "None"}</span>
     </div>
   );
 }

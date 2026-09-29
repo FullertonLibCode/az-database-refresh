@@ -28,6 +28,7 @@ export type FinalDecisionSummary = {
   decision: FinalDecision;
   selectedReviewId: string | null;
   finalDescriptionHtml: string;
+  oneSearchIcon: boolean;
   artificialIntelligenceIcon: boolean;
   finalized: boolean;
   finalizedAt: string | null;
@@ -80,4 +81,11 @@ export type ResultAdmin = {
   active: boolean;
   createdAt: string;
   adminReviewUrlPath: string | null;
+  assignmentProgress: ResultAdminAssignmentProgress;
+};
+
+export type ResultAdminAssignmentProgress = {
+  finalizedCount: number;
+  totalCount: number;
+  updatedAt: string | null;
 };
