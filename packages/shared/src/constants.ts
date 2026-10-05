@@ -2,6 +2,7 @@ export const SPRINGSHARE_HEADERS = [
   "ID (Required)",
   "DATABASE NAME (Required)",
   "PUBLIC DATABASE DISPLAY",
+  "SHOW IN",
   "DATABASE LANDING PAGE",
   "DATABASE URL",
   "USE PROXY?",

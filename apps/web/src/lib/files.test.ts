@@ -21,6 +21,10 @@ describe("workbook import", () => {
     expect(parsed.payload.records).toHaveLength(1);
     expect(Object.keys(parsed.payload.records[0]?.springshareMetadata ?? {})).toEqual([...SPRINGSHARE_HEADERS]);
     expect(parsed.payload.records[0]?.databaseId).toBe("2361493");
+    expect(parsed.payload.records[0]?.databaseUrl).toBe("https://example.test");
+    expect(parsed.payload.records[0]?.originalDescriptionHtml).toBe("<p>Original</p>");
+    expect(parsed.payload.records[0]?.associatedSubjects).toEqual(["Accounting and Tax"]);
+    expect(parsed.payload.records[0]?.springshareMetadata["SHOW IN"]).toBe("");
     expect(parsed.payload.records[0]?.rewrittenDescriptionAHtml).toBe("<p>Rewritten A</p>");
     expect(parsed.payload.records[0]?.rewrittenDescriptionBHtml).toBe("<p>Rewritten B</p>");
   });
@@ -66,7 +70,7 @@ describe("workbook export", () => {
     expect(worksheet?.rowCount).toBe(3);
     expect(worksheet?.getRow(3).getCell(1).value).toBe("active");
     expect(worksheet?.getRow(3).getCell(2).value).toBe("Active Database");
-    expect(worksheet?.getRow(3).getCell(11).value).toBe("<p>Final description</p>");
+    expect(worksheet?.getRow(3).getCell(12).value).toBe("<p>Final description</p>");
   });
 
   it("writes an edited database name to the exported workbook", async () => {
@@ -90,8 +94,8 @@ describe("workbook export", () => {
     }
     const workbook = await buildSpringshareWorkbook(source, [item], [], draft);
 
-    expect(workbook.getWorksheet("Import Template")?.getRow(3).getCell(25).value).toBe("37359;37352");
-    expect(workbook.getWorksheet("Import Template")?.getRow(3).getCell(11).value).toBe("<p>Final description</p>");
+    expect(workbook.getWorksheet("Import Template")?.getRow(3).getCell(26).value).toBe("37359;37352");
+    expect(workbook.getWorksheet("Import Template")?.getRow(3).getCell(12).value).toBe("<p>Final description</p>");
   });
 
   it("removes a legacy OneSearch image from the exported description", async () => {
@@ -103,15 +107,22 @@ describe("workbook export", () => {
     const workbook = await buildSpringshareWorkbook(source, [item], [], false);
     const row = workbook.getWorksheet("Import Template")?.getRow(3);
 
-    expect(row?.getCell(11).value).toBe("<p>Final description</p>");
-    expect(row?.getCell(25).value).toBe("37359");
+    expect(row?.getCell(12).value).toBe("<p>Final description</p>");
+    expect(row?.getCell(26).value).toBe("37359");
   });
 
   it("clears the resource icons cell when no icons are selected", async () => {
     const source = await buildExportWorkbookBase64("stale");
     const workbook = await buildSpringshareWorkbook(source, [aggregate("active", "Active Database")], [], true);
 
-    expect(workbook.getWorksheet("Import Template")?.getRow(3).getCell(25).value).toBe("");
+    expect(workbook.getWorksheet("Import Template")?.getRow(3).getCell(26).value).toBe("");
+  });
+
+  it("clears SHOW IN values in the exported workbook", async () => {
+    const source = await buildExportWorkbookBase64();
+    const workbook = await buildSpringshareWorkbook(source, [aggregate("active", "Active Database")], [], true);
+
+    expect(workbook.getWorksheet("Import Template")?.getRow(3).getCell(4).value).toBe("");
   });
 });
 
@@ -124,6 +135,7 @@ async function buildWorkbookFile(reviewHeaders: string[]): Promise<File> {
     "2361493",
     "Academic Search Complete",
     "Yes",
+    "",
     "",
     "https://example.test",
     "No",
@@ -161,7 +173,8 @@ async function buildExportWorkbookBase64(resourceIcons = ""): Promise<string> {
   worksheet.addRow([]);
   worksheet.addRow(["active", "Active Database"]);
   worksheet.addRow(["inactive", "Inactive Database"]);
-  worksheet.getRow(3).getCell(25).value = resourceIcons;
+  worksheet.getRow(3).getCell(4).value = "Main A-Z List;Sublists;Guides";
+  worksheet.getRow(3).getCell(26).value = resourceIcons;
   const bytes = await workbook.xlsx.writeBuffer();
   return Buffer.from(new Uint8Array(bytes)).toString("base64");
 }

@@ -107,19 +107,23 @@ export async function buildSpringshareWorkbook(
   const databaseNameById = new Map(
     aggregates.map((item) => [item.record.databaseId, item.record.databaseName])
   );
-  const resourceIconsColumn = findHeaderColumn(rowValues(worksheet.getRow(1)), ["RESOURCE ICONS"]);
+  const headers = rowValues(worksheet.getRow(1));
+  const descriptionColumn = findHeaderColumn(headers, ["DATABASE DESCRIPTION"]);
+  const resourceIconsColumn = findHeaderColumn(headers, ["RESOURCE ICONS"]);
+  const showInColumn = findHeaderColumn(headers, ["SHOW IN"]);
   for (let row = 3; row <= worksheet.rowCount; row += 1) {
     const id = cellText(worksheet.getRow(row).getCell(1).value);
     const databaseName = databaseNameById.get(id);
     if (databaseName !== undefined) worksheet.getRow(row).getCell(2).value = databaseName;
     const finalDescription = finalById.get(id);
-    if (finalDescription !== undefined && finalDescription !== "") {
-      worksheet.getRow(row).getCell(11).value = finalDescription;
+    if (finalDescription !== undefined && finalDescription !== "" && descriptionColumn > 0) {
+      worksheet.getRow(row).getCell(descriptionColumn).value = finalDescription;
     }
     const resourceIcons = resourceIconsById.get(id);
     if (resourceIcons !== undefined && resourceIconsColumn > 0) {
       worksheet.getRow(row).getCell(resourceIconsColumn).value = resourceIcons;
     }
+    if (showInColumn > 0) worksheet.getRow(row).getCell(showInColumn).value = "";
   }
   return workbook;
 }
@@ -177,11 +181,11 @@ async function parseWorkbook(filename: string, buffer: ArrayBuffer): Promise<Par
     records.push({
       databaseId: id,
       databaseName: values[1] ?? "",
-      databaseUrl: values[4] ?? "",
-      originalDescriptionHtml: values[10] ?? "",
+      databaseUrl: values[5] ?? "",
+      originalDescriptionHtml: values[11] ?? "",
       rewrittenDescriptionAHtml: review?.a ?? "",
       rewrittenDescriptionBHtml: review?.b ?? "",
-      associatedSubjects: splitSubjects(values[13] ?? ""),
+      associatedSubjects: splitSubjects(values[14] ?? ""),
       springshareMetadata: metadata
     });
   }
